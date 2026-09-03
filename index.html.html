@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>SPACE RUNNER - 第1版</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#020817;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP",sans-serif;touch-action:none}
+body{display:flex;justify-content:center;align-items:center}
+#game{position:relative;width:min(100vw,56.25vh);height:100vh;max-width:480px;overflow:hidden;background:#020817}
+canvas{position:absolute;inset:0;width:100%;height:100%}
+button{cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none}\n.hud{position:absolute;top:calc(env(safe-area-inset-top) + 12px);left:12px;right:12px;display:flex;justify-content:space-between;pointer-events:none}
+.panel{background:rgba(5,10,20,.82);border:2px solid #667080;border-radius:13px;padding:7px 11px;color:#fff;text-shadow:0 1px 2px #000;box-shadow:0 3px 12px #0008}
+.label{font-size:12px;font-weight:700}
+.value{font-size:21px;font-weight:800;color:#ffd32a}
+.fuelbar{width:105px;height:14px;border:2px solid #8993a3;border-radius:5px;padding:2px;margin-top:4px}
+.fuelinner{height:100%;width:100%;background:#39d353;border-radius:2px;transition:width .1s}
+#timer{position:absolute;top:calc(env(safe-area-inset-top) + 14px);left:50%;transform:translateX(-50%);font-weight:800;font-size:18px;color:#fff;min-width:70px;text-align:center}
+#stationBtn{position:absolute;left:50%;bottom:calc(165px + env(safe-area-inset-bottom));transform:translateX(-50%);display:none;padding:13px 30px;border-radius:14px;border:2px solid #8eea45;background:#17270e;color:#b9ff80;font-size:21px;font-weight:900;box-shadow:0 0 18px #75ff4c88}
+.controls{position:absolute;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;align-items:end}
+.move,.speed{background:rgba(8,13,24,.82);border:2px solid #556070;border-radius:18px;padding:9px;display:flex;gap:8px}
+.ctrl{width:62px;height:62px;border-radius:50%;border:2px solid #7d8795;background:#28313d;color:#fff;font-size:30px;font-weight:900}
+.ctrl:active,.speedBtn:active,#stationBtn:active,.menuBtn:active{transform:scale(.94)}
+.speed{border-radius:15px;display:flex}
+.speedBtn{width:58px;height:56px;border-radius:11px;border:2px solid #536072;background:#111b2a;color:#fff;font-weight:800;font-size:13px}
+.speedBtn.active{background:#233b20;border-color:#68df50;box-shadow:0 0 9px #61ff4b66}
+#overlay{position:absolute;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:20px}
+.card{width:92%;max-width:390px;background:rgba(5,12,25,.96);border:2px solid #687589;border-radius:20px;padding:24px;text-align:center;color:#fff;box-shadow:0 12px 35px #000}
+.card h1{margin:0 0 8px;font-size:30px;color:#fff}
+.card h2{margin:0 0 15px;font-size:27px;color:#ffdc36}
+.card p{margin:8px 0;color:#cbd3df;line-height:1.55}
+.menuBtn{margin-top:16px;width:100%;padding:14px;border-radius:13px;border:0;background:#1769d5;color:#fff;font-size:19px;font-weight:800}
+#gameover{display:none}
+.small{font-size:12px;color:#8f9bad}
+</style>
+</head>
+<body>
+<div id="game"><div id="jsFallback" style="display:none;position:absolute;z-index:99;inset:0;background:#07101f;color:#fff;padding:28px;text-align:center;font-size:17px">このゲームを実行するには、HTMLファイルをSafariで開いてください。</div>
+<canvas id="canvas"></canvas>
+
+<div class="hud">
+  <div class="panel">
+    <div class="label">燃料</div>
+    <div class="fuelbar"><div id="fuelinner" class="fuelinner"></div></div>
+  </div>
+  <div id="timer" class="panel">03:00</div>
+  <div class="panel" style="text-align:right">
+    <div class="label">距離</div>
+    <div id="distance" class="value">0 m</div>
+  </div>
+</div>
+
+<button id="stationBtn">⛽ 補給</button>
+
+<div class="controls">
+  <div class="move">
+    <button class="ctrl" id="left">←</button>
+    <button class="ctrl" id="right">→</button>
+  </div>
+  <div class="speed">
+    <button class="speedBtn" data-speed="0">遅い</button>
+    <button class="speedBtn active" data-speed="1">普通</button>
+    <button class="speedBtn" data-speed="2">速い</button>
+  </div>
+</div>
+
+<div id="overlay">
+  <div id="start" class="card">
+    <h1>🚀 SPACE RUNNER</h1>
+    <p>惑星と小惑星を避けながら<br>3分間、宇宙を航行しよう！</p>
+    <p>衝突すると燃料が減ります。<br>宇宙ステーションでは補給できます。</p>
+    <button class="menuBtn" id="startBtn">ゲーム開始</button>
+  </div>
+  <div id="gameover" class="card">
+    <h2>GAME OVER</h2>
+    <p>航行距離</p>
+    <div id="finalDistance" style="font-size:38px;font-weight:900;color:#ffd32a">0 m</div>
+    <p id="reason"></p>
+    <button class="menuBtn" id="retryBtn">リトライ</button>
+  </div>
+</div>
+</div>
+
+<script>
+const canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d');document.getElementById('jsFallback').style.display='none';
+const game=document.getElementById('game');
+let W,H,dpr=1;
+function resize(){
+  const r=game.getBoundingClientRect(); W=r.width; H=r.height;
+  dpr=Math.min(devicePixelRatio||1,2); canvas.width=W*dpr; canvas.height=H*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+addEventListener('resize',resize); resize();
+
+let running=false,last=0,timeLeft=180,distance=0,fuel=100,speed=1;
+let rocket={x:0,y:0,w:42,h:68,vx:0};
+let obstacles=[],stars=[],station=null,stationCooldown=4,stationVisible=false;
+let left=false,right=false,refueling=false,refuelTime=0,hitFlash=0;
+
+function reset(){
+  running=true;timeLeft=180;distance=0;fuel=100;speed=1;
+  obstacles=[];station=null;stationCooldown=5;stationVisible=false;refueling=false;refuelTime=0;hitFlash=0;
+  rocket.x=W/2;rocket.y=H*.69;rocket.vx=0;
+  for(let i=0;i<75;i++) stars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.6+.3,s:Math.random()*.5+.3});
+  updateHUD();
+}
+function rand(a,b){return a+Math.random()*(b-a)}
+function spawnObstacle(){
+  const types=['asteroid','mars','earth','jupiter','saturn'];
+  const type=types[Math.floor(Math.random()*types.length)];
+  const size=rand(22,52)*(type==='asteroid'?1:1.15);
+  obstacles.push({x:rand(size,W-size),y:-size-10,size,type,rot:rand(0,6.28),vy:rand(45,85)+speed*35});
+}
+function spawnStation(){
+  station={x:W/2,y:-90,w:105,h:72,vy:55+speed*20};
+  stationVisible=true;
+}
+function update(dt){
+  if(!running)return;
+  if(refueling){
+    refuelTime-=dt;
+    if(refuelTime<=0){fuel=100;refueling=false;station=null;stationVisible=false;stationCooldown=7}
+    return;
+  }
+  timeLeft-=dt;
+  if(timeLeft<=0){timeLeft=0;endGame('3分経過！');return}
+  const moveSpeed=190;
+  if(left)rocket.vx=-moveSpeed; else if(right)rocket.vx=moveSpeed; else rocket.vx=0;
+  rocket.x+=rocket.vx*dt;
+  rocket.x=Math.max(30,Math.min(W-30,rocket.x));
+  const scroll=(speed===0?45:speed===1?78:112);
+  distance+=scroll*dt;
+  fuel-=dt*(speed===0?.055:speed===1?.09:.145);
+  if(fuel<=0){fuel=0;endGame('燃料切れ！');return}
+  stationCooldown-=dt;
+  if(stationCooldown<=0&&!stationVisible){spawnStation();stationCooldown=999}
+  if(Math.random()<dt*(speed===0?1.5:speed===1?2.0:2.7))spawnObstacle();
+  obstacles.forEach(o=>o.y+=o.vy*dt*(.7+speed*.28));
+  obstacles=obstacles.filter(o=>o.y<H+100);
+  if(station){station.y+=station.vy*dt;if(station.y>H+100){station=null;stationVisible=false;stationCooldown=8}}
+  checkCollisions(); updateHUD();
+  stars.forEach(s=>{s.y+=s.s*(20+scroll)*dt;if(s.y>H)s.y=-2});
+  if(hitFlash>0)hitFlash-=dt;
+}
+function circleHit(x,y,r,rx,ry,rw,rh){
+  const cx=Math.max(rx-rw/2,Math.min(x,rx+rw/2)),cy=Math.max(ry-rh/2,Math.min(y,ry+rh/2));
+  return (x-cx)**2+(y-cy)**2<r*r;
+}
+function checkCollisions(){
+  for(let i=obstacles.length-1;i>=0;i--){
+    const o=obstacles[i];
+    if(circleHit(o.x,o.y,o.size*.65,rocket.x,rocket.y,rocket.w,rocket.h)){
+      obstacles.splice(i,1);fuel=Math.max(0,fuel-10);hitFlash=.18;
+      if(fuel<=0){endGame('燃料切れ！');return}
+    }
+  }
+  if(station && station.y>rocket.y-80 && station.y<rocket.y+70){
+    // Station itself is safe; it only offers refueling.
+  }
+}
+function startRefuel(){
+  if(!running||refueling||!station)return;
+  refueling=true;refuelTime=5;station.y=rocket.y-80;rocket.vx=0;
+}
+function endGame(msg){
+  running=false;refueling=false;stationVisible=false;document.getElementById('stationBtn').style.display='none';
+  document.getElementById('reason').textContent=msg;
+  document.getElementById('finalDistance').textContent=Math.floor(distance).toLocaleString()+' m';
+  document.getElementById('start').style.display='none';document.getElementById('gameover').style.display='block';
+  document.getElementById('overlay').style.display='flex';
+}
+function updateHUD(){
+  document.getElementById('fuelinner').style.width=fuel+'%';
+  document.getElementById('fuelinner').style.background=fuel<25?'#ff4b4b':fuel<50?'#ffd32a':'#39d353';
+  document.getElementById('distance').textContent=Math.floor(distance).toLocaleString()+' m';
+  const m=Math.floor(timeLeft/60),s=Math.floor(timeLeft%60);
+  document.getElementById('timer').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  const btn=document.getElementById('stationBtn');
+  btn.style.display=(running&&stationVisible&&!refueling)?'block':'none';
+}
+function drawSpace(){
+  ctx.fillStyle='#020817';ctx.fillRect(0,0,W,H);
+  const g=ctx.createRadialGradient(W*.5,H*.45,10,W*.5,H*.45,Math.max(W,H)*.8);
+  g.addColorStop(0,'#101e45');g.addColorStop(1,'#01050e');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#fff';
+  stars.forEach(s=>{ctx.globalAlpha=.35+s.r*.25;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill()});ctx.globalAlpha=1;
+}
+function drawPlanet(o){
+  ctx.save();ctx.translate(o.x,o.y);ctx.rotate(o.rot);
+  const r=o.size;
+  if(o.type==='asteroid'){
+    ctx.fillStyle='#72777f';ctx.beginPath();
+    for(let i=0;i<9;i++){let a=i*Math.PI*2/9,rr=r*(.78+Math.random()*.2);ctx.lineTo(Math.cos(a)*rr,Math.sin(a)*rr)}ctx.closePath();ctx.fill();
+    ctx.fillStyle='#41464d';for(let i=0;i<4;i++){ctx.beginPath();ctx.arc(rand(-r*.45,r*.45),rand(-r*.45,r*.45),r*.12,0,Math.PI*2);ctx.fill()}
+  }else{
+    let c=o.type==='mars'?'#c84b2e':o.type==='earth'?'#3e79b9':o.type==='jupiter'?'#c48a4b':'#d9a331';
+    ctx.fillStyle=c;ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.fill();
+    ctx.globalAlpha=.25;ctx.strokeStyle='#fff';ctx.lineWidth=r*.18;
+    for(let y=-r*.5;y<r*.7;y+=r*.35){ctx.beginPath();ctx.ellipse(0,y,r*.8,r*.13,0,0,Math.PI*2);ctx.stroke()}
+    ctx.globalAlpha=1;
+    if(o.type==='saturn'){ctx.strokeStyle='#e6b94d';ctx.lineWidth=r*.14;ctx.beginPath();ctx.ellipse(0,0,r*1.55,r*.45,0,0,Math.PI*2);ctx.stroke()}
+  }
+  ctx.restore();
+}
+function drawStation(){
+  if(!station)return;
+  ctx.save();ctx.translate(station.x,station.y);
+  ctx.strokeStyle='#d9e3ef';ctx.lineWidth=5;ctx.fillStyle='#8794a4';
+  ctx.beginPath();ctx.arc(0,0,25,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#d7e0e8';ctx.fillRect(-48,-9,30,18);ctx.fillRect(18,-9,30,18);
+  ctx.fillStyle='#5ec6ef';ctx.fillRect(-39,-6,13,12);ctx.fillRect(26,-6,13,12);
+  ctx.fillStyle='#c9d5df';ctx.fillRect(-8,-48,16,28);ctx.fillRect(-8,20,16,28);
+  ctx.fillStyle='#ef5547';ctx.beginPath();ctx.arc(0,-52,5,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+}
+function drawRocket(){
+  ctx.save();ctx.translate(rocket.x,rocket.y);
+  const flame=refueling?0:10+Math.random()*9;
+  ctx.fillStyle='#4cc9ff';ctx.beginPath();ctx.moveTo(-9,32);ctx.lineTo(0,32+flame*2);ctx.lineTo(9,32);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#ffb52e';ctx.beginPath();ctx.moveTo(-5,29);ctx.lineTo(0,29+flame);ctx.lineTo(5,29);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#e9edf3';ctx.beginPath();ctx.moveTo(0,-34);ctx.quadraticCurveTo(21,-16,18,22);ctx.lineTo(0,32);ctx.lineTo(-18,22);ctx.quadraticCurveTo(-21,-16,0,-34);ctx.fill();
+  ctx.fillStyle='#e64b3c';ctx.beginPath();ctx.moveTo(-17,2);ctx.lineTo(-31,22);ctx.lineTo(-17,20);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(17,2);ctx.lineTo(31,22);ctx.lineTo(17,20);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#d93636';ctx.beginPath();ctx.moveTo(0,-34);ctx.lineTo(-12,-14);ctx.lineTo(12,-14);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#66c9f5';ctx.strokeStyle='#24465f';ctx.lineWidth=4;ctx.beginPath();ctx.arc(0,-4,9,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.restore();
+}
+function draw(){
+  drawSpace();obstacles.forEach(drawPlanet);drawStation();drawRocket();
+  if(refueling){
+    ctx.fillStyle='rgba(10,30,15,.78)';ctx.fillRect(0,H*.42,W,H*.16);
+    ctx.fillStyle='#9cff63';ctx.font='800 24px -apple-system,sans-serif';ctx.textAlign='center';
+    ctx.fillText('補給中… '+Math.ceil(refuelTime)+'秒',W/2,H*.51);
+  }
+  if(hitFlash>0){ctx.fillStyle='rgba(255,70,40,.22)';ctx.fillRect(0,0,W,H)}
+}
+function loop(t){
+  const dt=Math.min((t-last)/1000||0,.05);last=t;
+  update(dt);draw();requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+function hold(btn,setter){
+  const on=e=>{e.preventDefault();setter(true)},off=e=>{e.preventDefault();setter(false)};
+  btn.addEventListener('pointerdown',on);btn.addEventListener('pointerup',off);btn.addEventListener('pointercancel',off);btn.addEventListener('pointerleave',off);
+}
+hold(document.getElementById('left'),v=>left=v);hold(document.getElementById('right'),v=>right=v);
+document.querySelectorAll('.speedBtn').forEach(b=>b.addEventListener('pointerdown',()=>{speed=+b.dataset.speed;document.querySelectorAll('.speedBtn').forEach(x=>x.classList.remove('active'));b.classList.add('active')}));
+document.getElementById('stationBtn').addEventListener('click',startRefuel);
+document.getElementById('startBtn').addEventListener('click',function(e){
+  e.preventDefault();
+  e.stopPropagation();
+  document.getElementById('overlay').style.display='none';
+  reset();
+});
+document.getElementById('retryBtn').addEventListener('click',function(e){
+  e.preventDefault();
+  e.stopPropagation();
+  document.getElementById('gameover').style.display='none';
+  document.getElementById('overlay').style.display='none';
+  reset();
+});
+</script>
+</body>
+</html>
